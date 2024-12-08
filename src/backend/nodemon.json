@@ -1,0 +1,21 @@
+{
+  "watch": [
+    "src"
+  ],
+  "ext": "ts,json",
+  "ignore": [
+    "dist",
+    "node_modules"
+  ],
+  "exec": "ts-node src/backend/src/app.ts",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "verbose": true,
+  "restartable": "rs",
+  "delay": 1000,
+  "colours": true,
+  "events": {
+    "restart": "osascript -e 'display notification \"App restarted due to changes\" with title \"nodemon\"'"
+  }
+}
