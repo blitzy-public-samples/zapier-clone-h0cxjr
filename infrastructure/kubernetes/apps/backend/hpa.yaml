@@ -1,0 +1,44 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Replace <environment_label> with your deployment environment (e.g., dev, staging, prod)
+
+# Requirement Addressed: Dynamic Scaling of Backend Services
+# Location: Technical Specification/System Architecture/Deployment Architecture
+# Description: Ensures that the backend application can scale dynamically based on resource utilization to handle varying workloads efficiently.
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+  namespace: <namespace_name>
+  labels:
+    app: backend
+    environment: <environment_label>
+spec:
+  # Link to the backend deployment for scaling
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend-deployment
+  
+  # Scaling configuration
+  minReplicas: 2  # Minimum number of replicas to maintain
+  maxReplicas: 10 # Maximum number of replicas to scale up to
+  
+  # Metrics used for scaling decisions
+  metrics:
+    # CPU utilization metric
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70  # Target CPU utilization percentage
+    
+    # Memory utilization metric
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80  # Target memory utilization percentage
