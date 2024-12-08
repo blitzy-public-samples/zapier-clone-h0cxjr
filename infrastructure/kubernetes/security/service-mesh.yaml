@@ -1,0 +1,212 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Replace <environment_label> with your deployment environment (e.g., dev, staging, prod)
+# 3. Verify TLS certificate configuration in workflow-platform-tls secret
+# 4. Configure network policies according to your security requirements
+# 5. Review and adjust resource limits based on your workload requirements
+
+# Requirement Addressed: Service Mesh Implementation
+# Location: Technical Specification/System Architecture/Service Mesh
+# Description: Ensures secure, reliable, and observable communication between microservices using Istio service mesh.
+
+---
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: workflow-platform-istio
+  namespace: <namespace_name>
+  labels:
+    app: workflow-automation
+    environment: <environment_label>
+spec:
+  profile: default
+  components:
+    base:
+      enabled: true
+    pilot:
+      enabled: true
+      k8s:
+        resources:
+          requests:
+            cpu: 500m
+            memory: 2Gi
+          limits:
+            cpu: 1000m
+            memory: 4Gi
+    ingressGateways:
+      - name: istio-ingressgateway
+        enabled: true
+        label:
+          app: istio-ingressgateway
+        k8s:
+          service:
+            type: LoadBalancer
+            ports:
+              - name: http2
+                port: 80
+                targetPort: 8080
+              - name: https
+                port: 443
+                targetPort: 8443
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+    egressGateways:
+      - name: istio-egressgateway
+        enabled: true
+        label:
+          app: istio-egressgateway
+        k8s:
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: workflow-platform-mtls
+  namespace: <namespace_name>
+  labels:
+    app: workflow-automation
+    environment: <environment_label>
+spec:
+  mtls:
+    mode: STRICT
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: workflow-platform-gateway
+  namespace: <namespace_name>
+  labels:
+    app: workflow-automation
+    environment: <environment_label>
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+      tls:
+        httpsRedirect: true
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "*"
+      tls:
+        mode: SIMPLE
+        credentialName: workflow-platform-tls
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: workflow-platform-destination
+  namespace: <namespace_name>
+  labels:
+    app: workflow-automation
+    environment: <environment_label>
+spec:
+  host: "*.svc.cluster.local"
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 5s
+      http:
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 100
+        maxRetries: 3
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 100
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: workflow-platform-routes
+  namespace: <namespace_name>
+  labels:
+    app: workflow-automation
+    environment: <environment_label>
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - workflow-platform-gateway
+  http:
+    - match:
+        - uri:
+            prefix: "/api"
+      route:
+        - destination:
+            host: workflow-platform-api
+            port:
+              number: 3000
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+      timeout: 10s
+    - match:
+        - uri:
+            prefix: "/integration"
+      route:
+        - destination:
+            host: workflow-platform-integration
+            port:
+              number: 3001
+      retries:
+        attempts: 3
+        perTryTimeout: 5s
+      timeout: 30s
+
+---
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: workflow-platform-telemetry
+  namespace: <namespace_name>
+  labels:
+    app: workflow-automation
+    environment: <environment_label>
+spec:
+  tracing:
+    - customTags:
+        environment:
+          literal:
+            value: <environment_label>
+    - sampling: 100
+  metrics:
+    - providers:
+        - name: prometheus
+    - overrides:
+        - match:
+            metric: REQUEST_COUNT
+          tagOverrides:
+            response_code:
+              operation: UPSERT
+              value: "{{.ResponseCode}}"
+  accessLogging:
+    - providers:
+        - name: envoy
