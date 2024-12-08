@@ -1,0 +1,51 @@
+# Location: Technical Specification/Development & Deployment/Development Environment
+# Description: Ensures that unnecessary files and directories are excluded from the Docker build context to optimize image size and build performance.
+
+# Dependencies and build artifacts
+node_modules
+dist
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Version control
+.git
+.gitignore
+
+# Development configuration
+.eslintrc.ts
+.prettierrc
+tsconfig.json
+
+# Testing
+cypress
+coverage
+
+# Documentation
+README.md
+
+# Docker files
+Dockerfile
+
+# IDE and editor files
+.idea
+.vscode
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cache directories
+.npm
+.eslintcache
+.stylelintcache
+
+# Temporary files
+.DS_Store
+Thumbs.db
