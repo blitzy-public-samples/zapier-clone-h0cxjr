@@ -1,0 +1,105 @@
+# Requirement Addressed: Centralized Logging and Visualization
+# Location: Technical Specification/System Architecture/Monitoring and Observability
+# Description: Provides a user interface for visualizing and analyzing logs collected from 
+# various components of the Workflow Automation Platform.
+
+# Human Tasks:
+# 1. Review and adjust memory and CPU limits based on your environment's capacity
+# 2. Change default elastic user password in production
+# 3. Configure SSL/TLS certificates for secure communication
+# 4. Review and adjust logging settings based on storage capacity
+
+# Server Configuration
+server:
+  name: kibana
+  host: "0.0.0.0"
+  port: 5601
+  publicBaseUrl: ""
+
+# Elasticsearch Connection
+elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  username: "elastic"
+  password: "changeme"
+  requestTimeout: 30000
+  shardTimeout: 30000
+  ssl:
+    verificationMode: certificate
+  sniffOnStart: true
+  sniffInterval: 60000
+
+# Kibana Configuration
+kibana:
+  index: ".kibana"
+  defaultAppId: "home"
+
+# Monitoring Configuration
+monitoring:
+  ui:
+    container:
+      elasticsearch:
+        enabled: true
+  enabled: true
+  cluster_alerts:
+    enabled: true
+
+# Logging Configuration
+logging:
+  appenders:
+    file:
+      type: file
+      fileName: /var/log/kibana.log
+      layout:
+        type: json
+  root:
+    appenders: [file]
+  level: info
+
+# Security Configuration
+xpack:
+  security:
+    enabled: true
+    encryptionKey: "something_at_least_32_characters"
+    session:
+      idleTimeout: 1h
+      lifespan: 24h
+
+# Resource Limits (aligned with Kubernetes configuration)
+resources:
+  limits:
+    memory: 2Gi
+    cpu: 1
+  requests:
+    memory: 1Gi
+    cpu: 500m
+
+# Search Settings
+search:
+  timeout:
+    shardTimeout: 30000
+  batchedReduceSize: 512
+
+# Cache Settings
+cache:
+  maxAge: 3600000
+
+# Status Page
+status:
+  allowAnonymous: false
+
+# Plugin Settings
+plugins:
+  paths:
+    - /usr/share/kibana/plugins
+
+# Telemetry Settings
+telemetry:
+  enabled: false
+
+# Node Settings
+node:
+  name: ${server.name}
+
+# Clustering Settings (if needed)
+cluster:
+  name: docker-elasticsearch  # Matches Elasticsearch cluster name from imported config
