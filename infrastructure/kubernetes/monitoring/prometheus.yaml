@@ -1,0 +1,276 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Replace <application_label> with your application identifier (e.g., workflow-automation)
+# 3. Replace <environment_label> with your deployment environment (e.g., dev, staging, prod)
+# 4. Replace <prometheus_configuration> with your actual Prometheus configuration
+# 5. Review and adjust resource limits based on your monitoring requirements
+# 6. Verify network policies align with your security requirements
+
+# Requirement Addressed: Monitoring and Observability
+# Location: Technical Specification/Cross-Cutting Concerns/Monitoring and Observability
+# Description: Implements Prometheus monitoring system for collecting and storing metrics
+# from the Workflow Automation Platform components.
+
+---
+# ServiceAccount for Prometheus
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus-service-account
+  namespace: <namespace_name>
+  labels:
+    app: prometheus
+    environment: <environment_label>
+
+---
+# ConfigMap for Prometheus configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: <namespace_name>
+  labels:
+    app: prometheus
+    environment: <environment_label>
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        environment: <environment_label>
+    
+    scrape_configs:
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: default;kubernetes;https
+
+      - job_name: 'kubernetes-nodes'
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+
+---
+# Deployment for Prometheus
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-server
+  namespace: <namespace_name>
+  labels:
+    app: prometheus
+    environment: <environment_label>
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: prometheus
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        environment: <environment_label>
+    spec:
+      serviceAccountName: prometheus-service-account
+      securityContext:
+        fsGroup: 2000
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.41.0
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=15d"
+            - "--web.enable-lifecycle"
+          ports:
+            - containerPort: 9090
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: 1000m
+              memory: 4Gi
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/prometheus
+            - name: storage-volume
+              mountPath: /prometheus
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+      volumes:
+        - name: config-volume
+          configMap:
+            name: prometheus-config
+        - name: storage-volume
+          emptyDir: {}
+
+---
+# Service for Prometheus
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: <namespace_name>
+  labels:
+    app: prometheus
+    environment: <environment_label>
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '9090'
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9090
+  type: ClusterIP
+
+---
+# NetworkPolicy for Prometheus
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus-network-policy
+  namespace: <namespace_name>
+  labels:
+    app: prometheus
+    environment: <environment_label>
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grafana
+        - podSelector:
+            matchLabels:
+              app: alertmanager
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 10250
+        - protocol: TCP
+          port: 443
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+# RBAC Role for Prometheus
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus-role
+  namespace: <namespace_name>
+  labels:
+    app: prometheus
+    environment: <environment_label>
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions"]
+    resources:
+      - ingresses
+    verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding for Prometheus
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-role-binding
+  namespace: <namespace_name>
+  labels:
+    app: prometheus
+    environment: <environment_label>
+subjects:
+  - kind: ServiceAccount
+    name: prometheus-service-account
+    namespace: <namespace_name>
+roleRef:
+  kind: Role
+  name: prometheus-role
+  apiGroup: rbac.authorization.k8s.io
