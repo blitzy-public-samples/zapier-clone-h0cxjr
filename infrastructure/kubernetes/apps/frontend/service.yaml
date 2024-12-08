@@ -1,0 +1,25 @@
+# Requirement Addressed: Frontend Service Exposure
+# Location: Technical Specification/System Architecture/Deployment Architecture
+# Description: Ensures that the frontend application is accessible via a stable network endpoint within the Kubernetes cluster.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: <namespace_name>
+  labels:
+    app: frontend
+    environment: production
+spec:
+  # Select pods with the frontend label from the deployment
+  selector:
+    app: frontend
+  # Configure port mapping
+  ports:
+    - protocol: TCP
+      # Port exposed by the service
+      port: 80
+      # Port on the pod where the frontend application is running
+      targetPort: 3000
+  # Use ClusterIP for internal access within the cluster
+  type: ClusterIP
