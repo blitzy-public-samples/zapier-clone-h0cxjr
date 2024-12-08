@@ -1,0 +1,52 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Replace <environment_label> with your deployment environment (e.g., dev, staging, prod)
+# 3. Replace <platform_domain> with your actual domain name
+# 4. Replace <tls_secret_name> with your TLS certificate secret name (e.g., workflow-platform-tls)
+
+# Requirement Addressed: Traffic Routing and Load Balancing
+# Location: Technical Specification/System Architecture/Deployment Architecture
+# Description: Ensures that external HTTP and HTTPS traffic is routed to the appropriate backend and frontend services with support for load balancing and TLS termination.
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: platform-ingress
+  namespace: <namespace_name>
+  labels:
+    app: workflow-platform
+    environment: <environment_label>
+  annotations:
+    # Enable URL rewriting
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # Force HTTPS redirection
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Set maximum request body size to 10MB
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  # TLS configuration for HTTPS
+  tls:
+    - hosts:
+        - <platform_domain>
+      secretName: <tls_secret_name>
+  # Routing rules
+  rules:
+    - host: <platform_domain>
+      http:
+        paths:
+          # Backend API route
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-service
+                port:
+                  number: 80
+          # Frontend route (catch-all)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-service
+                port:
+                  number: 80
