@@ -1,0 +1,208 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Replace <application_label> with your application identifier (e.g., workflow-automation)
+# 3. Replace <environment_label> with your deployment environment (e.g., dev, staging, prod)
+# 4. Review and adjust security policies based on specific application requirements
+# 5. Ensure service accounts have appropriate permissions to use these policies
+
+# Requirement Addressed: Pod-Level Security
+# Location: Technical Specification/Security Architecture/Security Protocols
+# Description: Ensures that pods adhere to strict security standards, including 
+# privilege restrictions and resource constraints.
+
+---
+# Default restrictive policy for all pods
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: workflow-platform-restricted
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    security-level: restricted
+  annotations:
+    description: "Default restrictive security policy for all workflow platform pods"
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - configMap
+    - emptyDir
+    - projected
+    - secret
+    - downwardAPI
+    - persistentVolumeClaim
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: MustRunAsNonRoot
+    ranges:
+      - min: 1000
+      - max: 65535
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+  fsGroup:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+  readOnlyRootFilesystem: true
+  allowedCapabilities: []
+  defaultAllowPrivilegeEscalation: false
+  forbiddenSysctls:
+    - '*'
+
+---
+# Policy for workflow engine pods
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: workflow-engine-policy
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: workflow-engine
+  annotations:
+    description: "Security policy for workflow execution engine pods"
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - configMap
+    - emptyDir
+    - projected
+    - secret
+    - downwardAPI
+    - persistentVolumeClaim
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: MustRunAsNonRoot
+    ranges:
+      - min: 1000
+        max: 65535
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+  fsGroup:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+  readOnlyRootFilesystem: true
+  allowedCapabilities: []
+  defaultAllowPrivilegeEscalation: false
+
+---
+# Policy for API server pods
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: api-server-policy
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: api-server
+  annotations:
+    description: "Security policy for API server pods"
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - configMap
+    - emptyDir
+    - projected
+    - secret
+    - downwardAPI
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: MustRunAsNonRoot
+    ranges:
+      - min: 1000
+        max: 65535
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+  fsGroup:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+  readOnlyRootFilesystem: true
+  allowedCapabilities: []
+  defaultAllowPrivilegeEscalation: false
+
+---
+# Policy for task worker pods
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: task-worker-policy
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: task-worker
+  annotations:
+    description: "Security policy for task worker pods"
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - configMap
+    - emptyDir
+    - projected
+    - secret
+    - downwardAPI
+    - persistentVolumeClaim
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: MustRunAsNonRoot
+    ranges:
+      - min: 1000
+        max: 65535
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+  fsGroup:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+  readOnlyRootFilesystem: true
+  allowedCapabilities: []
+  defaultAllowPrivilegeEscalation: false
