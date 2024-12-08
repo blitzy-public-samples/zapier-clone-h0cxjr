@@ -1,0 +1,159 @@
+# GitHub Actions workflow for automating the release process of the Workflow Automation Platform
+# Addresses requirements:
+# - Release Automation (Technical Specification/Development & Deployment/CI/CD Pipeline)
+# - Security Compliance (Technical Specification/Security Considerations/Security Compliance)
+# - Deployment Strategy (Technical Specification/Development & Deployment/Deployment Strategy)
+
+name: Release
+
+# Trigger workflow on release creation
+on:
+  release:
+    types: [created]
+
+# Environment variables
+env:
+  NODE_VERSION: '20.x'
+  DOCKER_REGISTRY: ghcr.io
+  BACKEND_IMAGE: workflow-automation-backend
+  FRONTEND_IMAGE: workflow-automation-frontend
+
+jobs:
+  # Prepare Release job - Run CI pipelines and security scans
+  prepare-release:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      # Run backend CI workflow
+      - name: Run Backend CI
+        uses: ./.github/workflows/backend-ci.yml
+
+      # Run frontend CI workflow
+      - name: Run Frontend CI
+        uses: ./.github/workflows/frontend-ci.yml
+
+      # Run security scan
+      - name: Run Security Scan
+        uses: snyk/actions@v3
+        with:
+          args: --severity-threshold=high
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  # Build and Push Docker Images job
+  build-and-push-images:
+    name: Build and Push Docker Images
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Login to GitHub Container Registry
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build and push backend image
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./src/backend
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.BACKEND_IMAGE }}:${{ github.event.release.tag_name }}
+            ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.BACKEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build and push frontend image
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./src/web
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.FRONTEND_IMAGE }}:${{ github.event.release.tag_name }}
+            ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.FRONTEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Deploy to Staging job
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build-and-push-images
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Deploy to staging environment
+      - name: Deploy to Staging
+        run: |
+          echo "Deploying version ${{ github.event.release.tag_name }} to staging"
+          # Add deployment commands here
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_STAGING }}
+
+      # Run smoke tests
+      - name: Run Smoke Tests
+        run: |
+          echo "Running smoke tests in staging"
+          # Add smoke test commands here
+
+  # Promote to Production job
+  promote-production:
+    name: Promote to Production
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: 
+      name: production
+      url: https://production.example.com
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Deploy to production using canary release
+      - name: Deploy Canary Release
+        run: |
+          echo "Deploying canary release ${{ github.event.release.tag_name }} to production"
+          # Add canary deployment commands here
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+
+      # Monitor canary deployment
+      - name: Monitor Canary Deployment
+        run: |
+          echo "Monitoring canary deployment metrics"
+          # Add monitoring commands here
+
+      # Promote to full production
+      - name: Promote to Full Production
+        if: success()
+        run: |
+          echo "Promoting canary to full production deployment"
+          # Add promotion commands here
+
+      # Rollback on failure
+      - name: Rollback on Failure
+        if: failure()
+        run: |
+          echo "Rolling back failed deployment"
+          # Add rollback commands here
