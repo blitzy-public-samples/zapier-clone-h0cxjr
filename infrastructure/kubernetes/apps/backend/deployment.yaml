@@ -1,0 +1,120 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Replace <environment_label> with your deployment environment (e.g., dev, staging, prod)
+# 3. Replace <configmap_name> with your actual ConfigMap name (e.g., workflow-platform-config)
+# 4. Replace <secret_name> with your actual Secret name (e.g., workflow-platform-credentials)
+# 5. Replace <service_account_name> with your actual ServiceAccount name (e.g., api-server)
+# 6. Update resource limits and requests based on actual application requirements
+# 7. Verify health check endpoints match your application configuration
+
+# Requirement Addressed: Backend Service Deployment
+# Location: Technical Specification/System Architecture/Deployment Architecture
+# Description: Ensures the backend service is deployed in a scalable and reliable manner using Kubernetes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  namespace: <namespace_name>
+  labels:
+    app: backend
+    environment: <environment_label>
+    component: api-server
+spec:
+  # Requirement Addressed: Resource Management
+  # Location: Technical Specification/System Architecture/Deployment Architecture
+  # Description: Manages resource allocation and scaling for the backend service.
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: backend
+        environment: <environment_label>
+        component: api-server
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "9090"
+    spec:
+      # Requirement Addressed: Containerized Application Deployment
+      # Location: Technical Specification/Development & Deployment/Deployment Architecture
+      # Description: Deploys the containerized backend application using Kubernetes Deployment resources.
+      containers:
+        - name: backend-container
+          image: backend-image:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+            - name: metrics
+              containerPort: 9090
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: <configmap_name>
+                  key: NODE_ENV
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: <configmap_name>
+                  key: LOG_LEVEL
+          envFrom:
+            - configMapRef:
+                name: <configmap_name>
+            - secretRef:
+                name: <secret_name>
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+            - name: logs-volume
+              mountPath: /usr/src/app/logs
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
+        - name: logs-volume
+          emptyDir: {}
+      serviceAccountName: <service_account_name>
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      terminationGracePeriodSeconds: 60
