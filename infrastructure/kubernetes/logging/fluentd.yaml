@@ -1,0 +1,219 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Replace <environment_label> with your deployment environment (e.g., dev, staging, prod)
+# 3. Replace <configmap_name> with the actual ConfigMap name containing Fluentd configuration
+# 4. Replace <secret_name> with the actual Secret name containing Fluentd credentials
+# 5. Review and adjust resource limits based on your log volume requirements
+# 6. Ensure the ServiceAccount has appropriate permissions to access pod logs
+
+# Requirement Addressed: Centralized Logging
+# Location: Technical Specification/System Architecture/Monitoring and Observability
+# Description: Provides a mechanism for collecting and forwarding logs from various components 
+# of the Workflow Automation Platform to Elasticsearch for centralized storage and analysis.
+
+---
+# Network Policy for Fluentd
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fluentd-network-policy
+  namespace: <namespace_name>
+  labels:
+    app: fluentd
+    environment: <environment_label>
+spec:
+  podSelector:
+    matchLabels:
+      app: fluentd
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 24224
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: elasticsearch
+      ports:
+        - protocol: TCP
+          port: 9200
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+# ServiceAccount for Fluentd
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluentd
+  namespace: <namespace_name>
+  labels:
+    app: fluentd
+    environment: <environment_label>
+
+---
+# ClusterRole for Fluentd
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluentd
+  labels:
+    app: fluentd
+    environment: <environment_label>
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - namespaces
+      - pods/logs
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+# ClusterRoleBinding for Fluentd
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluentd
+  labels:
+    app: fluentd
+    environment: <environment_label>
+roleRef:
+  kind: ClusterRole
+  name: fluentd
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: fluentd
+    namespace: <namespace_name>
+
+---
+# DaemonSet for Fluentd
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: <namespace_name>
+  labels:
+    app: fluentd
+    environment: <environment_label>
+spec:
+  selector:
+    matchLabels:
+      app: fluentd
+  template:
+    metadata:
+      labels:
+        app: fluentd
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "24231"
+    spec:
+      serviceAccountName: fluentd
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+      containers:
+        - name: fluentd
+          image: fluent/fluentd:v1.14.2  # Version pinned for stability
+          ports:
+            - containerPort: 24224
+              name: forward
+              protocol: TCP
+            - containerPort: 24231
+              name: metrics
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: <configmap_name>
+            - secretRef:
+                name: <secret_name>
+          env:
+            - name: FLUENT_ELASTICSEARCH_HOST
+              value: "elasticsearch"
+            - name: FLUENT_ELASTICSEARCH_PORT
+              value: "9200"
+            - name: FLUENTD_SYSTEMD_CONF
+              value: "disable"
+          resources:
+            requests:
+              memory: "500Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: config
+              mountPath: /fluentd/etc
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 24231
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 24231
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: config
+          configMap:
+            name: <configmap_name>
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        fsGroup: 100
+
+---
+# Service for Fluentd
+apiVersion: v1
+kind: Service
+metadata:
+  name: fluentd
+  namespace: <namespace_name>
+  labels:
+    app: fluentd
+    environment: <environment_label>
+spec:
+  ports:
+    - name: forward
+      port: 24224
+      protocol: TCP
+      targetPort: forward
+    - name: metrics
+      port: 24231
+      protocol: TCP
+      targetPort: metrics
+  selector:
+    app: fluentd
+  type: ClusterIP
