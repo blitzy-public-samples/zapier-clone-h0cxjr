@@ -1,0 +1,37 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Verify CPU and memory utilization thresholds match your environment's requirements
+# 3. Review min/max replica counts based on expected workload
+
+# Requirement Addressed: Frontend Autoscaling
+# Location: Technical Specification/System Architecture/Deployment Architecture
+# Description: Ensures that the frontend application scales automatically based on CPU and memory utilization to handle varying workloads efficiently.
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend-hpa
+  namespace: <namespace_name>
+  labels:
+    app: frontend
+    environment: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend-deployment
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
