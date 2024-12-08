@@ -1,0 +1,113 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with the actual namespace name for your environment
+# 2. Replace <application_label> with your application identifier
+# 3. Replace <environment_label> with the deployment environment (e.g., dev, staging, prod)
+# 4. Replace configuration values with actual settings for your environment
+
+# Requirement Addressed: Configuration Management
+# Location: Technical Specification/System Architecture/Deployment Architecture
+# Description: Ensures that non-sensitive configuration data is managed and stored securely 
+# in ConfigMaps for use by Kubernetes resources.
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workflow-platform-config
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+data:
+  # API Configuration
+  API_PORT: "3000"
+  API_TIMEOUT: "30000"
+  API_RATE_LIMIT: "1000"
+  API_BURST_LIMIT: "100"
+  
+  # Integration Service Configuration
+  INTEGRATION_SERVICE_PORT: "3001"
+  INTEGRATION_TIMEOUT: "60000"
+  INTEGRATION_MAX_RETRIES: "3"
+  INTEGRATION_RETRY_DELAY: "5000"
+  
+  # Workflow Engine Configuration
+  WORKFLOW_ENGINE_PORT: "3002"
+  WORKFLOW_EXECUTION_TIMEOUT: "3600000"
+  WORKFLOW_MAX_STEPS: "100"
+  WORKFLOW_CONCURRENT_EXECUTIONS: "50"
+  
+  # Cache Configuration
+  CACHE_TTL: "3600"
+  CACHE_MAX_ITEMS: "10000"
+  
+  # Monitoring Configuration
+  METRICS_PORT: "9090"
+  METRICS_PATH: "/metrics"
+  HEALTH_CHECK_PATH: "/health"
+  READINESS_PATH: "/ready"
+  
+  # Logging Configuration
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  LOG_MAX_SIZE: "100m"
+  LOG_MAX_FILES: "10"
+  
+  # Feature Flags
+  ENABLE_ANALYTICS: "true"
+  ENABLE_AUDIT_LOGGING: "true"
+  ENABLE_RATE_LIMITING: "true"
+  ENABLE_CIRCUIT_BREAKER: "true"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workflow-platform-integration-config
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+data:
+  # Integration Connectors Configuration
+  CONNECTOR_TIMEOUT: "30000"
+  CONNECTOR_MAX_RETRIES: "3"
+  CONNECTOR_RETRY_DELAY: "5000"
+  CONNECTOR_CACHE_TTL: "3600"
+  
+  # API Rate Limiting Per Integration
+  RATE_LIMIT_SHOPIFY: "250"
+  RATE_LIMIT_SALESFORCE: "100000"
+  RATE_LIMIT_HUBSPOT: "100"
+  RATE_LIMIT_QUICKBOOKS: "500"
+  
+  # Integration Authentication Settings
+  AUTH_TOKEN_EXPIRY: "3600"
+  AUTH_REFRESH_BEFORE: "300"
+  AUTH_MAX_RETRIES: "3"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workflow-platform-monitoring-config
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+data:
+  # Monitoring and Alerting Configuration
+  ALERT_NOTIFICATION_URL: "http://alert-service:8080/notify"
+  ALERT_MIN_INTERVAL: "300"
+  ALERT_SEVERITY_LEVELS: "critical,error,warning,info"
+  
+  # Performance Monitoring
+  PERF_SAMPLE_RATE: "0.1"
+  PERF_TRACE_PROBABILITY: "0.05"
+  PERF_MAX_TRACES: "1000"
+  
+  # Health Check Configuration
+  HEALTH_CHECK_INTERVAL: "30"
+  HEALTH_CHECK_TIMEOUT: "5"
+  READINESS_TIMEOUT: "5"
+  LIVENESS_TIMEOUT: "5"
