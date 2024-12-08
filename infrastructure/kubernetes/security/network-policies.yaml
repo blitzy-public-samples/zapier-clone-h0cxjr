@@ -1,0 +1,272 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Replace <application_label> with your application identifier (e.g., workflow-automation)
+# 3. Replace <environment_label> with your deployment environment (e.g., dev, staging, prod)
+# 4. Review and adjust network policies based on your specific security requirements
+# 5. Ensure service accounts have appropriate permissions to use these policies
+
+# Requirement Addressed: Network Security
+# Location: Technical Specification/Security Architecture/Network Security
+# Description: Ensures that network traffic within the Kubernetes cluster is restricted 
+# and controlled based on defined policies.
+
+---
+# Default deny all ingress and egress traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# API Server Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-server-policy
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: api-server
+spec:
+  podSelector:
+    matchLabels:
+      app: <application_label>
+      component: api-server
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              environment: <environment_label>
+        - podSelector:
+            matchLabels:
+              app: istio-ingressgateway
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              component: workflow-engine
+      ports:
+        - protocol: TCP
+          port: 3002
+    - to:
+        - podSelector:
+            matchLabels:
+              component: integration-service
+      ports:
+        - protocol: TCP
+          port: 3001
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53 # DNS
+        - protocol: TCP
+          port: 53 # DNS
+
+---
+# Workflow Engine Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: workflow-engine-policy
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: workflow-engine
+spec:
+  podSelector:
+    matchLabels:
+      app: <application_label>
+      component: workflow-engine
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              component: api-server
+      ports:
+        - protocol: TCP
+          port: 3002
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              component: task-worker
+      ports:
+        - protocol: TCP
+          port: 3003
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53 # DNS
+        - protocol: TCP
+          port: 53 # DNS
+
+---
+# Task Worker Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: task-worker-policy
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: task-worker
+spec:
+  podSelector:
+    matchLabels:
+      app: <application_label>
+      component: task-worker
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              component: workflow-engine
+      ports:
+        - protocol: TCP
+          port: 3003
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              component: integration-service
+      ports:
+        - protocol: TCP
+          port: 3001
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53 # DNS
+        - protocol: TCP
+          port: 53 # DNS
+
+---
+# Integration Service Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: integration-service-policy
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: integration-service
+spec:
+  podSelector:
+    matchLabels:
+      app: <application_label>
+      component: integration-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              component: api-server
+        - podSelector:
+            matchLabels:
+              component: task-worker
+      ports:
+        - protocol: TCP
+          port: 3001
+  egress:
+    - to: # Allow external API access
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443 # HTTPS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53 # DNS
+        - protocol: TCP
+          port: 53 # DNS
+
+---
+# Monitoring Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-policy
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: <application_label>
+      component: monitoring
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              environment: <environment_label>
+      ports:
+        - protocol: TCP
+          port: 9090 # Prometheus
+        - protocol: TCP
+          port: 3000 # Grafana
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              environment: <environment_label>
+      ports:
+        - protocol: TCP
+          port: 9090 # Prometheus metrics
+        - protocol: TCP
+          port: 9091 # Push Gateway
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53 # DNS
+        - protocol: TCP
+          port: 53 # DNS
