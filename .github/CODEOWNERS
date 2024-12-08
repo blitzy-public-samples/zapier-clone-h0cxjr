@@ -1,0 +1,27 @@
+# For more information, see:
+# https://docs.github.com/en/repositories/managing-your-repository-settings/about-code-owners
+
+# Requirement: Code Ownership and Review Automation
+# Location: Technical Specification/System Design/Collaboration and Governance
+# Description: Ensures that specific individuals or teams are automatically requested 
+# for reviews when changes are made to certain parts of the repository.
+
+# Requirement: Security and Accountability
+# Location: Technical Specification/Security Considerations/Access Control
+# Description: Defines ownership to ensure accountability and proper review of changes to critical files.
+
+# Default owners for everything in the repo
+# Team leads will be requested for review as a fallback
+*       @team-leads
+
+# Backend team owns all backend-related code
+src/backend/*    @backend-team
+
+# Frontend team owns all web-related code
+src/web/*    @frontend-team
+
+# DevOps team owns infrastructure code
+infrastructure/*    @devops-team
+
+# CI/CD team owns GitHub workflow configurations
+.github/workflows/*    @ci-cd-team
