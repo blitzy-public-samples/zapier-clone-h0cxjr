@@ -1,0 +1,43 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Replace <environment_label> with your deployment environment (e.g., dev, staging, prod)
+
+# Requirement Addressed: Service Exposure and Load Balancing
+# Location: Technical Specification/System Architecture/Deployment Architecture
+# Description: Ensures that the backend application is exposed to other services or external clients 
+# with support for load balancing and service discovery.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: <namespace_name>
+  labels:
+    app: backend
+    environment: <environment_label>
+    component: api-server
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "9090"
+spec:
+  # Select pods with the backend label
+  selector:
+    app: backend
+  
+  # Define service ports
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80  # Service port
+      targetPort: 3000  # Container port (matches backend application port)
+    - name: metrics
+      protocol: TCP
+      port: 9090
+      targetPort: 9090
+  
+  # Use ClusterIP for internal service discovery
+  type: ClusterIP
+  
+  # Enable session affinity if needed
+  sessionAffinity: None
