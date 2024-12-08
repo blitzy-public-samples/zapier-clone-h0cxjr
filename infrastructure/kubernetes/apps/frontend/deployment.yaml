@@ -1,0 +1,94 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Replace <configmap_name> with your actual ConfigMap name (e.g., workflow-platform-config)
+# 3. Replace <secret_name> with your actual Secret name (e.g., workflow-platform-credentials)
+# 4. Verify resource limits and requests match your environment's capacity
+# 5. Adjust replica count based on your scaling requirements
+# 6. Review health check endpoints and timing configurations
+
+# Requirement Addressed: Frontend Deployment
+# Location: Technical Specification/System Architecture/Deployment Architecture
+# Description: Ensures the frontend application is deployed in a scalable and highly available manner using Kubernetes.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  namespace: <namespace_name>
+  labels:
+    app: frontend
+    environment: production
+spec:
+  # Configure 3 replicas for high availability
+  replicas: 3
+  
+  # Pod selector configuration
+  selector:
+    matchLabels:
+      app: frontend
+  
+  # Template for pod configuration
+  template:
+    metadata:
+      labels:
+        app: frontend
+        environment: production
+    spec:
+      containers:
+        - name: frontend
+          # Use the frontend application image
+          # Note: Using node:20-alpine as base image from Dockerfile
+          image: frontend-app:latest
+          
+          # Configure container ports
+          ports:
+            - containerPort: 3000
+              name: http
+          
+          # Environment configuration from ConfigMap and Secrets
+          envFrom:
+            - configMapRef:
+                name: <configmap_name>
+            - secretRef:
+                name: <secret_name>
+          
+          # Resource limits and requests
+          resources:
+            requests:
+              cpu: "250m"    # Request 0.25 CPU cores
+              memory: "512Mi" # Request 512MB memory
+            limits:
+              cpu: "500m"    # Limit to 0.5 CPU cores
+              memory: "1Gi"  # Limit to 1GB memory
+          
+          # Liveness probe configuration
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          # Readiness probe configuration
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          # Image pull policy
+          imagePullPolicy: Always
+      
+      # Pod security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+      
+      # Pod termination grace period
+      terminationGracePeriodSeconds: 30
