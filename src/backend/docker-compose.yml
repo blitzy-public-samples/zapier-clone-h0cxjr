@@ -1,0 +1,106 @@
+# Addresses requirement: Local Development Environment
+# Technical Specification/Development & Deployment/Development Environment
+# Provides a Docker Compose configuration to simplify the setup of a local development environment
+
+version: '3.8'
+
+# Define custom network for service isolation
+networks:
+  workflow-platform-network:
+    name: workflow-platform-network
+    driver: bridge
+
+# Define persistent volumes
+volumes:
+  db_data:
+    name: db_data
+    driver: local
+
+# Service definitions
+services:
+  # Backend API service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: workflow-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://db_user:db_pass@db:5432/workflow_db
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=supersecretkey
+      - APP_PORT=3000
+    volumes:
+      - ./src:/usr/src/app
+    depends_on:
+      - db
+      - redis
+      - queue
+    networks:
+      - workflow-platform-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # PostgreSQL database service
+  db:
+    image: postgres:15
+    container_name: workflow-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=db_user
+      - POSTGRES_PASSWORD=db_pass
+      - POSTGRES_DB=workflow_db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - workflow-platform-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U db_user -d workflow_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # Redis cache service
+  redis:
+    image: redis:7.0
+    container_name: workflow-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - workflow-platform-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # RabbitMQ message queue service
+  queue:
+    image: rabbitmq:3.12-management
+    container_name: workflow-queue
+    ports:
+      - "5672:5672"  # AMQP protocol port
+      - "15672:15672"  # Management interface port
+    networks:
+      - workflow-platform-network
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
