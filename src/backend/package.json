@@ -1,0 +1,51 @@
+{
+  "name": "workflow-automation-backend",
+  "version": "1.0.0",
+  "description": "Backend services for the Workflow Automation Platform.",
+  "main": "dist/server.js",
+  "scripts": {
+    "start": "node dist/server.js",
+    "dev": "nodemon",
+    "build": "tsc",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write .",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "dependencies": {
+    "typescript": "^5.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "jest": "29.0.0",
+    "nodemon": "^2.0.0",
+    "@typescript-eslint/parser": "^5.0.0",
+    "@typescript-eslint/eslint-plugin": "^5.0.0",
+    "eslint-config-prettier": "^8.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "@types/jest": "^29.0.0",
+    "@types/node": "^18.0.0",
+    "ts-jest": "^29.0.0",
+    "ts-node": "^10.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/organization/workflow-automation-backend.git"
+  },
+  "keywords": [
+    "workflow",
+    "automation",
+    "backend",
+    "typescript",
+    "node"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/organization/workflow-automation-backend/issues"
+  },
+  "homepage": "https://github.com/organization/workflow-automation-backend#readme"
+}
