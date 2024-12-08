@@ -1,0 +1,28 @@
+# Grafana datasources configuration (v9.5.0)
+# Addresses requirement: Monitoring and Observability
+# Configures Grafana with Prometheus (v2.45.0) as the default data source for system metrics visualization
+
+apiVersion: 1
+
+# List of data sources to be configured in Grafana
+datasources:
+  # Prometheus data source configuration
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    version: 1
+    editable: true
+    jsonData:
+      timeInterval: "15s"
+      queryTimeout: "60s"
+      httpMethod: "POST"
+      manageAlerts: true
+    secureJsonData: {}
+    # Health check configuration
+    healthcheck:
+      enabled: true
+      frequency: 60
+      timeoutSeconds: 30
+      failureThreshold: 3
