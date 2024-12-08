@@ -1,0 +1,89 @@
+# Technical Specification Reference: Security Considerations/Security Testing
+# Purpose: GitHub Actions workflow for performing security scans on the repository 
+# to identify vulnerabilities in dependencies and code.
+
+name: Security Scan
+
+# Schedule the workflow to run weekly
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Run at midnight every Sunday
+  # Also run on pull requests to main/master branch
+  pull_request:
+    branches: [ main, master ]
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      # Step 1: Check out the repository code
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+
+      # Step 2: Initialize CodeQL
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript, typescript
+          config-file: .github/codeql-config.yml
+
+      # Step 3: Autobuild (CodeQL will attempt to automatically build the code)
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      # Step 4: Perform CodeQL Analysis
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:javascript,typescript"
+
+      # Step 5: Run Trivy vulnerability scanner
+      - name: Run Trivy Scan
+        uses: aquasecurity/trivy-action@v0.6.0
+        with:
+          image-ref: ghcr.io/organization/repository:latest
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'HIGH,CRITICAL'
+          vuln-type: 'os,library'
+
+      # Step 6: Upload Trivy scan results
+      - name: Upload Trivy Results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: trivy
+
+      # Step 7: Upload consolidated scan results
+      - name: Upload Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-scan-results
+          path: |
+            results/
+            trivy-results.sarif
+          retention-days: 7
+
+      # Step 8: Fail if critical vulnerabilities are found
+      - name: Check for Critical Vulnerabilities
+        if: ${{ failure() }}
+        run: |
+          echo "Security scan detected critical vulnerabilities!"
+          echo "Please review the scan results and address any critical issues."
+          exit 1
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
