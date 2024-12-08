@@ -1,0 +1,86 @@
+# Prometheus configuration (v2.45.0)
+# Requirement Addressed: Monitoring and Observability
+# Location: Technical Specification/Cross-Cutting Concerns/Monitoring and Observability
+# Description: Ensures that system metrics, application logs, and traces are collected and visualized for monitoring and alerting purposes.
+
+global:
+  scrape_interval: 15s     # Set the scrape interval to every 15 seconds
+  evaluation_interval: 15s # Evaluate rules every 15 seconds
+
+# Rule files specifies a list of files from which rules are read
+rule_files:
+  - "alert.rules"
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# A list of scrape configurations
+scrape_configs:
+  # Self monitoring - scrape metrics from Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node exporter monitoring - scrape metrics about system resources
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Workflow Platform API monitoring
+  - job_name: 'workflow-platform-api'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['workflow-platform-api:3000']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+
+  # Workflow Engine monitoring
+  - job_name: 'workflow-engine'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['workflow-engine:3002']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+
+  # Integration Service monitoring
+  - job_name: 'integration-service'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['integration-service:3001']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+
+  # Task Worker monitoring
+  - job_name: 'task-worker'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['task-worker:3003']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+
+  # Grafana monitoring
+  - job_name: 'grafana'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['grafana:3000']
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
