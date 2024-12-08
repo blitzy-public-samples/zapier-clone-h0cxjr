@@ -1,0 +1,147 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Replace <environment_label> with your deployment environment (e.g., dev, staging, prod)
+# 3. Replace <configmap_name> with the actual Kibana ConfigMap name
+# 4. Replace <secret_name> with the actual Kibana Secret name
+# 5. Review and adjust resource limits based on your workload requirements
+# 6. Ensure Elasticsearch is properly configured and accessible
+
+# Requirement Addressed: Centralized Logging and Visualization
+# Location: Technical Specification/System Architecture/Monitoring and Observability
+# Description: Provides a user interface for visualizing and analyzing logs collected from 
+# various components of the Workflow Automation Platform.
+
+---
+# Kibana Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: <namespace_name>
+  labels:
+    app: kibana
+    environment: <environment_label>
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      containers:
+        - name: kibana
+          image: docker.elastic.co/kibana/kibana:7.10.2  # Version aligned with Elasticsearch
+          ports:
+            - containerPort: 5601
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: <configmap_name>
+            - secretRef:
+                name: <secret_name>
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: "http://elasticsearch:9200"
+            - name: SERVER_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=1800"  # Prevent memory issues
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 5601
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 5601
+            initialDelaySeconds: 120
+            periodSeconds: 20
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: kibana-data
+              mountPath: /usr/share/kibana/data
+      volumes:
+        - name: kibana-data
+          emptyDir: {}
+
+---
+# Kibana Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: <namespace_name>
+  labels:
+    app: kibana
+    environment: <environment_label>
+spec:
+  ports:
+    - port: 5601
+      targetPort: 5601
+      protocol: TCP
+      name: http
+  selector:
+    app: kibana
+  type: ClusterIP
+
+---
+# Network Policy for Kibana
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kibana-network-policy
+  namespace: <namespace_name>
+  labels:
+    app: kibana
+    environment: <environment_label>
+spec:
+  podSelector:
+    matchLabels:
+      app: kibana
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: istio-ingressgateway
+      ports:
+        - protocol: TCP
+          port: 5601
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: elasticsearch
+      ports:
+        - protocol: TCP
+          port: 9200
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53  # DNS
+        - protocol: TCP
+          port: 53  # DNS
