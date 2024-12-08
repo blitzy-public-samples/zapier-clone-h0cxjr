@@ -1,0 +1,8 @@
+# Ensures that only relevant parts of the web application are indexed by search engines,
+# improving SEO and protecting sensitive areas.
+
+User-agent: *
+Disallow: /api/
+Disallow: /auth/
+Disallow: /config/
+Allow: /
