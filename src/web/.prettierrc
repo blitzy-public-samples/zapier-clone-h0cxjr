@@ -1,0 +1,50 @@
+{
+  // Requirement: Code Formatting Consistency
+  // Location: Technical Specification/Development & Deployment/Development Environment
+  // Description: Ensures consistent code formatting across the React-based frontend application
+  
+  // Maximum line length before wrapping
+  "printWidth": 80,
+  
+  // Number of spaces per indentation level
+  "tabWidth": 2,
+  
+  // Use spaces instead of tabs
+  "useTabs": false,
+  
+  // Add semicolons at the end of statements
+  "semi": true,
+  
+  // Use single quotes instead of double quotes
+  "singleQuote": true,
+  
+  // Trailing commas in objects and arrays (ES5 compatible)
+  "trailingComma": "es5",
+  
+  // Add spaces between brackets in object literals
+  "bracketSpacing": true,
+  
+  // Always include parentheses around arrow function parameters
+  "arrowParens": "always",
+  
+  // Ensure consistent with ESLint configuration
+  "endOfLine": "lf",
+  
+  // JSX-specific configurations
+  "jsxSingleQuote": false,
+  "jsxBracketSameLine": false,
+  
+  // Parser configurations
+  "parser": "typescript",
+  "requirePragma": false,
+  "insertPragma": false,
+  
+  // Markdown configurations
+  "proseWrap": "preserve",
+  
+  // HTML configurations
+  "htmlWhitespaceSensitivity": "css",
+  
+  // Vue configurations
+  "vueIndentScriptAndStyle": false
+}
