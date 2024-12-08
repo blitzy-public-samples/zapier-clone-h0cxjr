@@ -1,0 +1,205 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with your actual namespace (e.g., workflow-platform)
+# 2. Replace <environment_label> with your deployment environment (e.g., dev, staging, prod)
+# 3. Replace <configmap_name> with the actual ConfigMap name for Grafana configuration
+# 4. Replace <secret_name> with the actual Secret name containing Grafana credentials
+# 5. Review and adjust resource limits based on your monitoring requirements
+
+# Requirement Addressed: Monitoring and Observability
+# Location: Technical Specification/Cross-Cutting Concerns/Monitoring and Observability
+# Description: Provides visualization and analytics capabilities for system metrics and 
+# application logs collected by Prometheus.
+
+---
+# ConfigMap for Grafana configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: <namespace_name>
+  labels:
+    app: grafana
+    environment: <environment_label>
+data:
+  grafana.ini: |
+    [server]
+    root_url = http://grafana:3000
+    serve_from_sub_path = true
+
+    [security]
+    admin_user = ${GF_SECURITY_ADMIN_USER}
+    admin_password = ${GF_SECURITY_ADMIN_PASSWORD}
+    
+    [auth]
+    disable_login_form = false
+    
+    [auth.basic]
+    enabled = true
+    
+    [analytics]
+    reporting_enabled = false
+    check_for_updates = false
+    
+    [metrics]
+    enabled = true
+    
+    [log]
+    mode = console
+    level = info
+
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-service:80
+        isDefault: true
+        editable: false
+        version: 1
+        jsonData:
+          timeInterval: "15s"
+          queryTimeout: "30s"
+          httpMethod: "POST"
+
+---
+# Deployment for Grafana
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: <namespace_name>
+  labels:
+    app: grafana
+    environment: <environment_label>
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: grafana
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: grafana
+        environment: <environment_label>
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+    spec:
+      securityContext:
+        fsGroup: 472
+        supplementalGroups:
+          - 0
+      containers:
+        - name: grafana
+          # Using Grafana v9.5.2 as specified in dependencies
+          image: grafana/grafana:v9.5.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: GF_INSTALL_PLUGINS
+              value: "grafana-clock-panel,grafana-simple-json-datasource"
+          envFrom:
+            - secretRef:
+                name: workflow-platform-monitoring
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/grafana/grafana.ini
+              subPath: grafana.ini
+            - name: config
+              mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+              subPath: datasources.yaml
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            timeoutSeconds: 30
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            timeoutSeconds: 30
+            failureThreshold: 10
+      volumes:
+        - name: config
+          configMap:
+            name: grafana-config
+
+---
+# Service for Grafana
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  namespace: <namespace_name>
+  labels:
+    app: grafana
+    environment: <environment_label>
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  selector:
+    app: grafana
+
+---
+# NetworkPolicy for Grafana
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grafana-network-policy
+  namespace: <namespace_name>
+  labels:
+    app: grafana
+    environment: <environment_label>
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 80
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
