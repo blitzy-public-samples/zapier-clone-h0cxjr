@@ -1,0 +1,115 @@
+# Frontend CI workflow for the Workflow Automation Platform
+# Requirements addressed:
+# - Frontend CI/CD Pipeline (Technical Specification/Development & Deployment/CI/CD Pipeline)
+#   Automates the continuous integration process for the frontend application
+# - Testing and Validation (Technical Specification/System Design/Testing)
+#   Ensures all unit, integration, and end-to-end tests are executed
+
+name: Frontend CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/web/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/web/**'
+      - '.github/workflows/frontend-ci.yml'
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: src/web
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: src/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+        
+      - name: Run unit and integration tests
+        run: npm test
+        env:
+          CI: true
+          REACT_APP_API_BASE_URL: http://localhost:3000/api
+          REACT_APP_API_TIMEOUT: 5000
+          REACT_APP_AUTH_TOKEN_EXPIRATION: 3600
+
+      - name: Build application
+        run: npm run build
+        env:
+          CI: true
+          REACT_APP_API_BASE_URL: http://localhost:3000/api
+          REACT_APP_API_TIMEOUT: 5000
+          REACT_APP_AUTH_TOKEN_EXPIRATION: 3600
+
+      - name: Run Cypress E2E tests
+        uses: cypress-io/github-action@v4
+        with:
+          working-directory: src/web
+          start: npm start
+          wait-on: 'http://localhost:3000'
+          wait-on-timeout: 120
+          browser: chrome
+          record: false
+        env:
+          CYPRESS_BASE_URL: http://localhost:3000
+          CYPRESS_API_BASE_URL: http://localhost:3000/api
+
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-coverage
+          path: src/web/coverage
+          retention-days: 14
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: src/web/dist
+          retention-days: 14
+
+      - name: Upload Cypress artifacts
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: cypress-artifacts
+          path: |
+            src/web/cypress/videos
+            src/web/cypress/screenshots
+          retention-days: 14
+
+  notify:
+    name: Notify Status
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check build status
+        if: ${{ needs.build-and-test.result != 'success' }}
+        run: exit 1
