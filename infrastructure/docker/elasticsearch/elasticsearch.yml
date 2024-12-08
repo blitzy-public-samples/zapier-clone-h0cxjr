@@ -1,0 +1,116 @@
+# Requirement Addressed: Centralized Logging
+# Location: Technical Specification/System Architecture/Monitoring and Observability
+# Description: Provides a scalable and reliable storage solution for logs collected from 
+# various components of the Workflow Automation Platform.
+
+# Human Tasks:
+# 1. Review and adjust memory and CPU limits based on your environment's capacity
+# 2. Change default elastic user password in production
+# 3. Configure backup storage location for data persistence
+# 4. Review and adjust JVM heap size settings
+# 5. Configure SSL/TLS certificates for secure communication
+
+# Cluster Configuration
+cluster:
+  name: docker-elasticsearch
+
+# Node Configuration
+node:
+  name: node-1
+  roles:
+    - master
+    - data
+
+# Network Configuration
+network:
+  host: 0.0.0.0
+  port: 9200
+
+# Discovery Configuration
+discovery:
+  seed_hosts:
+    - node-1
+    - node-2
+    - node-3
+  initial_master_nodes:
+    - node-1
+
+# Path Configuration
+path:
+  data: /usr/share/elasticsearch/data
+  logs: /usr/share/elasticsearch/logs
+
+# Memory Configuration
+bootstrap:
+  memory_lock: true
+
+# Security Configuration
+xpack.security:
+  enabled: true
+  transport.ssl:
+    enabled: true
+  http.ssl:
+    enabled: true
+
+# Authentication Configuration
+xpack.security.authc:
+  anonymous:
+    username: elastic
+    roles: superuser
+    authz_exception: false
+
+# Resource Limits
+thread_pool:
+  write:
+    queue_size: 1000
+  search:
+    queue_size: 1000
+
+# Performance Settings
+indices:
+  memory:
+    index_buffer_size: 10%
+  fielddata:
+    cache:
+      size: 20%
+  query:
+    bool:
+      max_clause_count: 1024
+
+# Recovery Settings
+gateway:
+  recover_after_nodes: 2
+  recover_after_time: 5m
+  expected_nodes: 3
+
+# Monitoring Settings
+xpack.monitoring:
+  collection:
+    enabled: true
+
+# Action Configuration
+action:
+  destructive_requires_name: true
+
+# HTTP Configuration
+http:
+  compression: true
+  cors:
+    enabled: true
+    allow-origin: "*"
+    allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
+    allow-headers: X-Requested-With, X-Auth-Token, Content-Type, Content-Length
+    allow-credentials: true
+
+# Logging Configuration
+logger:
+  level: INFO
+
+# Resource Limits (from specification)
+resources:
+  limits:
+    memory: 4Gi
+    cpu: 2
+  requests:
+    memory: 2Gi
+    cpu: 1
