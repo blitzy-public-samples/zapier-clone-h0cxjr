@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!-- 
+    Requirements addressed:
+    - User Interface Design (Technical Specification/User Interface Design/Design System Specifications)
+      Provides the base HTML structure, links to assets, and metadata for the web application.
+  -->
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A no-code platform for workflow automation.">
+    
+    <!-- Primary font preload -->
+    <link 
+      rel="preload" 
+      href="/src/assets/fonts/inter.woff2" 
+      as="font" 
+      type="font/woff2" 
+      crossorigin
+    >
+    
+    <!-- Secondary font preload -->
+    <link 
+      rel="preload" 
+      href="/src/assets/fonts/roboto-mono.woff2" 
+      as="font" 
+      type="font/woff2" 
+      crossorigin
+    >
+    
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.ico">
+    
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#2563EB">
+    
+    <!-- Global Styles -->
+    <link rel="stylesheet" href="/src/styles/global.css">
+    
+    <!-- Title -->
+    <title>Workflow Automation Platform</title>
+    
+    <!-- Font loading optimization -->
+    <style>
+      /* Font face declarations */
+      @font-face {
+        font-family: 'Inter';
+        src: url('/src/assets/fonts/inter.woff2') format('woff2');
+        font-weight: 400 700;
+        font-display: swap;
+      }
+      
+      @font-face {
+        font-family: 'Roboto Mono';
+        src: url('/src/assets/fonts/roboto-mono.woff2') format('woff2');
+        font-weight: 400 600;
+        font-display: swap;
+      }
+      
+      /* Prevent FOUT */
+      html {
+        visibility: hidden;
+      }
+      
+      /* Show content when fonts are loaded */
+      .fonts-loaded {
+        visibility: visible;
+      }
+    </style>
+    
+    <!-- Font loading script -->
+    <script>
+      if ("fonts" in document) {
+        Promise.all([
+          document.fonts.load("1em Inter"),
+          document.fonts.load("1em Roboto Mono")
+        ]).then(() => {
+          document.documentElement.classList.add("fonts-loaded");
+        });
+      } else {
+        document.documentElement.classList.add("fonts-loaded");
+      }
+    </script>
+  </head>
+  <body>
+    <!-- No-JavaScript warning -->
+    <noscript>
+      <div style="padding: 20px; text-align: center;">
+        JavaScript is required to run this application. Please enable JavaScript in your browser settings.
+      </div>
+    </noscript>
+    
+    <!-- React application mount point -->
+    <div id="root">
+      <!-- Initial loading state -->
+      <div 
+        style="
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          font-family: Inter, system-ui, sans-serif;
+        "
+      >
+        Loading...
+      </div>
+    </div>
+    
+    <!-- Application entry point -->
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
