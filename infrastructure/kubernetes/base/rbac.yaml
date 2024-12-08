@@ -1,0 +1,132 @@
+# Human Tasks:
+# 1. Replace <namespace_name> with the actual namespace name for your environment
+# 2. Replace <application_label> with your application identifier
+# 3. Replace <environment_label> with the deployment environment (e.g., dev, staging, prod)
+
+# Requirement Addressed: Role-Based Access Control
+# Location: Technical Specification/Security Architecture/Authorization Model
+# Description: Ensures that resources and operations within the Kubernetes cluster are secured 
+# and accessible only to authorized entities.
+
+---
+# Role for workflow execution engine
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: workflow-engine-role
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: workflow-engine
+spec:
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "pods/log", "secrets", "configmaps"]
+      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    - apiGroups: ["batch"]
+      resources: ["jobs", "cronjobs"]
+      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    - apiGroups: ["events.k8s.io"]
+      resources: ["events"]
+      verbs: ["get", "list", "watch", "create"]
+
+---
+# Role for API server
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: api-server-role
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: api-server
+spec:
+  rules:
+    - apiGroups: [""]
+      resources: ["secrets", "configmaps"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: [""]
+      resources: ["services"]
+      verbs: ["get", "list", "watch"]
+
+---
+# Role for task workers
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: task-worker-role
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: task-worker
+spec:
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "pods/log"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: [""]
+      resources: ["secrets", "configmaps"]
+      verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding for workflow execution engine
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: workflow-engine-rolebinding
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: workflow-engine
+subjects:
+  - kind: ServiceAccount
+    name: workflow-engine
+    namespace: <namespace_name>
+roleRef:
+  kind: Role
+  name: workflow-engine-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# RoleBinding for API server
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: api-server-rolebinding
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: api-server
+subjects:
+  - kind: ServiceAccount
+    name: api-server
+    namespace: <namespace_name>
+roleRef:
+  kind: Role
+  name: api-server-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# RoleBinding for task workers
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: task-worker-rolebinding
+  namespace: <namespace_name>
+  labels:
+    app: <application_label>
+    environment: <environment_label>
+    component: task-worker
+subjects:
+  - kind: ServiceAccount
+    name: task-worker
+    namespace: <namespace_name>
+roleRef:
+  kind: Role
+  name: task-worker-role
+  apiGroup: rbac.authorization.k8s.io
