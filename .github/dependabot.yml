@@ -1,0 +1,109 @@
+# Addresses requirement: Dependency Management
+# Location: Technical Specification/Development & Deployment/CI/CD Pipeline
+# Description: Automates the process of keeping dependencies up-to-date to ensure security and compatibility.
+
+# Addresses requirement: Security Compliance
+# Location: Technical Specification/Security Considerations/Security Compliance
+# Description: Ensures that dependencies are updated to mitigate vulnerabilities and maintain compliance with security standards.
+
+version: 2
+updates:
+  # Backend npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/src/backend"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    reviewers:
+      - "@team-leads"
+    assignees:
+      - "@devops"
+    labels:
+      - "dependencies"
+      - "backend"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    open-pull-requests-limit: 10
+    versioning-strategy:
+      lockfile-only: true
+    allow:
+      - dependency-type: "production"
+      - dependency-type: "development"
+
+  # Frontend npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/src/web"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    reviewers:
+      - "@team-leads"
+    assignees:
+      - "@devops"
+    labels:
+      - "dependencies"
+      - "frontend"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    open-pull-requests-limit: 10
+    versioning-strategy:
+      lockfile-only: true
+    allow:
+      - dependency-type: "production"
+      - dependency-type: "development"
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/src/backend"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    reviewers:
+      - "@team-leads"
+    assignees:
+      - "@devops"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(docker)"
+      include: "scope"
+    open-pull-requests-limit: 10
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    reviewers:
+      - "@team-leads"
+    assignees:
+      - "@devops"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(actions)"
+      include: "scope"
+    open-pull-requests-limit: 10
+
+  # Terraform dependencies
+  - package-ecosystem: "terraform"
+    directory: "/infrastructure"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    reviewers:
+      - "@team-leads"
+    assignees:
+      - "@devops"
+    labels:
+      - "dependencies"
+      - "infrastructure"
+    commit-message:
+      prefix: "chore(terraform)"
+      include: "scope"
+    open-pull-requests-limit: 10
